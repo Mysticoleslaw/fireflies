@@ -54,7 +54,8 @@ void test_glow_settings_parse_and_default() {
   TEST_ASSERT_EQUAL(1, d.glowPulsesMin);
   TEST_ASSERT_EQUAL(6, d.glowPulses);
   TEST_ASSERT_EQUAL(100, d.glowPulseMinMs);
-  TEST_ASSERT_EQUAL(30, d.glowEverySec);
+  TEST_ASSERT_EQUAL(92, d.glowEverySec);
+  TEST_ASSERT_EQUAL(0, d.randomColour);
   Settings p{};
   uint32_t mask = 0;
   TEST_ASSERT_NULL(parseSettingParam("glowColour", "00ff80", p, mask));
@@ -128,7 +129,7 @@ void test_apply_masked_only_touches_masked_fields() {
   TEST_ASSERT_EQUAL(3, out.minWait);
   TEST_ASSERT_EQUAL(500, out.pulseA);
   TEST_ASSERT_EQUAL_STRING(base.name, out.name);
-  TEST_ASSERT_EQUAL(10, base.minWait);  // base untouched
+  TEST_ASSERT_EQUAL(30, base.minWait);  // base untouched
 }
 
 // ---------- protocol ----------

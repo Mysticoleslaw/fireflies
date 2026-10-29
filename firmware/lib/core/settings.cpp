@@ -126,29 +126,30 @@ const char* parseColour(const char* value, uint8_t& r, uint8_t& g, uint8_t& b) {
 
 const char* glowModeName(uint8_t mode) { return mode <= kGlowMatchJump ? kGlowModeNames[mode] : "fixed"; }
 
+// Defaults = bug #1's hand-tuned settings (2026-10-28), except servo pulses (per-servo calibration).
 Settings defaultSettings(const Mac& mac) {
   Settings s{};
   snprintf(s.name, kNameLen, "Firefly %02x%02x%02x", mac.b[3], mac.b[4], mac.b[5]);
   s.hopping = 1;
-  s.randomColour = 1;
+  s.randomColour = 0;
   s.stayLit = 0;
   s.holdServo = 0;
   s.onboardLed = 0;
   s.ledDelayMs = 100;  // a micro servo takes ~100 ms to visibly start moving
   s.fireflyGlow = 1;
   s.glowPulsesMin = 1, s.glowPulses = 6;          // pulses per burst
-  s.glowPulseMinMs = 100, s.glowPulseMs = 600;     // each pulse
-  s.glowEveryMinSec = 2, s.glowEverySec = 30;      // between bursts
-  s.glowBrightMin = 40, s.glowBrightMax = 100;     // % per pulse
-  s.glowR = 0xb4, s.glowG = 0xff, s.glowB = 0x28;  // firefly yellow-green
+  s.glowPulseMinMs = 100, s.glowPulseMs = 700;     // each pulse
+  s.glowEveryMinSec = 3, s.glowEverySec = 92;      // between bursts
+  s.glowBrightMin = 30, s.glowBrightMax = 100;     // % per pulse
+  s.glowR = 0x00, s.glowG = 0xff, s.glowB = 0x00;  // green
   s.rainbowHop = 0;
   s.glowColourMode = kGlowFixed;
-  s.r = 0xff, s.g = 0xc9, s.b = 0x40;
+  s.r = 0xff, s.g = 0xa2, s.b = 0x00;  // amber jump flash
   s.brightness = 100;
-  s.minWait = 10;
-  s.maxWait = 30;
-  s.swingMs = 500;
-  s.fadeMs = 1200;
+  s.minWait = 30;
+  s.maxWait = 120;
+  s.swingMs = 550;
+  s.fadeMs = 500;
   s.pulseA = 500;
   s.pulseB = 2500;
   s.posX = s.posY = kPosUnknown;

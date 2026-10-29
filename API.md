@@ -24,25 +24,25 @@ All responses send `Access-Control-Allow-Origin: *`, so the app can also run fro
   "ip": null,                  // set while the firefly is in update mode
   "settings": {
     "hopping": true,
-    "randomColour": true,
+    "randomColour": false,
     "stayLit": false,
     "holdServo": false,        // keep driving the servo between hops (default: release it)
     "onboardLed": false,       // the D1 mini's blue LED (default: off)
-    "colour": "#ffc940",       // fixed colour used when randomColour is false
+    "colour": "#ffa200",       // fixed colour used when randomColour is false
     "brightness": 100,         // %, 5..100
-    "minWait": 10,             // s, 1..600
-    "maxWait": 30,             // s, 1..600
-    "swingMs": 500,            // 100..2000: how long the swing takes (eased; can't beat the servo's top speed)
+    "minWait": 30,             // s, 1..600
+    "maxWait": 120,             // s, 1..600
+    "swingMs": 550,            // 100..2000: how long the swing takes (eased; can't beat the servo's top speed)
     "ledDelayMs": 100,         // 0..1000: LED lights this long after the servo starts (servo lag)
     "fireflyGlow": true,       // blink like a firefly between hops (bursts of soft pulses)
-    "glowColour": "#b4ff28",   // firefly yellow-green
+    "glowColour": "#00ff00",   // green
     "glowColourMode": "fixed", // "fixed" (glowColour) | "random" (new colour per burst) | "jump" (the hop's colour)
     "rainbowHop": false,       // during the jump, sweep the whole colour wheel from a random start
     "glowPulsesMin": 1, "glowPulsesMax": 6,         // 1..10: pulses per burst, random in range
-    "glowPulseMinMs": 100, "glowPulseMaxMs": 600,   // 50..3000: each pulse's length, re-rolled per pulse
-    "glowEveryMinSec": 2, "glowEveryMaxSec": 30,    // 0..600: wait between bursts, random in range
-    "glowBrightMin": 40, "glowBrightMax": 100,     // 1..100 %: each pulse's brightness (min = max for fixed)
-    "fadeMs": 1200,            // 0..5000
+    "glowPulseMinMs": 100, "glowPulseMaxMs": 700,   // 50..3000: each pulse's length, re-rolled per pulse
+    "glowEveryMinSec": 3, "glowEveryMaxSec": 92,    // 0..600: wait between bursts, random in range
+    "glowBrightMin": 30, "glowBrightMax": 100,     // 1..100 %: each pulse's brightness (min = max for fixed)
+    "fadeMs": 500,            // 0..5000
     "pulseA": 500,             // µs, 400..1500; changing it moves the arm to end A
     "pulseB": 2500             // µs, 1500..2600; changing it moves the arm to end B
   }

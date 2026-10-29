@@ -22,12 +22,12 @@ const randomColour = () => "#" + randomBytes(3).toString("hex");
 function makeBug(i) {
   const id = randomBytes(6).toString("hex");
   return {
-    id, name: `Firefly ${id.slice(-6)}`, master: i === 0, online: true, lit: false, colour: "#ffc940", uptime: 0,
+    id, name: `Firefly ${id.slice(-6)}`, master: i === 0, online: true, lit: false, colour: "#ffa200", uptime: 0,
     battery: i === 2 ? 3.45 : i === 3 ? null : Math.round((4.2 + Math.random() * 0.5) * 100) / 100,
     lastStart: "power-on", build: i === 3 ? "0ld0ld00" : "f04967d4", ip: null, restarts: i === 1 ? 2 : 0, dropouts: i === 1 ? 1 : 0,
     settings: {
-      hopping: true, randomColour: true, stayLit: false, holdServo: false, onboardLed: false, colour: "#ffc940", brightness: 100,
-      minWait: 4, maxWait: 15, swingMs: 500, ledDelayMs: 100, fireflyGlow: true, rainbowHop: false, glowColourMode: "fixed", glowColour: "#b4ff28", glowPulsesMin: 1, glowPulsesMax: 6, glowPulseMinMs: 100, glowPulseMaxMs: 600, glowEveryMinSec: 2, glowEveryMaxSec: 30, glowBrightMin: 40, glowBrightMax: 100, fadeMs: 1200, pulseA: 500, pulseB: 2500,
+      hopping: true, randomColour: false, stayLit: false, holdServo: false, onboardLed: false, colour: "#ffc940", brightness: 100,
+      minWait: 30, maxWait: 120, swingMs: 550, ledDelayMs: 100, fireflyGlow: true, rainbowHop: false, glowColourMode: "fixed", glowColour: "#00ff00", glowPulsesMin: 1, glowPulsesMax: 6, glowPulseMinMs: 100, glowPulseMaxMs: 700, glowEveryMinSec: 3, glowEveryMaxSec: 92, glowBrightMin: 30, glowBrightMax: 100, fadeMs: 500, pulseA: 500, pulseB: 2500,
     },
   };
 }
