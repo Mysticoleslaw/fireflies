@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fireflies</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0c10;
+      --surface: #14161c;
+      --surface-2: #1b1e26;
+      --border: #262a34;
+      --text: #e7e8ec;
+      --muted: #9ca0ab;
+      --accent: #f5c84b;
+      --accent-ink: #1a1500;
+      --hopping: #5fd38a;
+      --resting: #9ca0ab;
+      --offline: #f08a7e;
+      --radius: 12px;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.4; }
+    main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+    [hidden] { display: none !important; }
+
+    header.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-bottom: 20px; }
+    header.top h1 { font-size: 20px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+    #summary { color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+
+    .btn {
+      font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn:hover:not(:disabled) { border-color: #3a3f4c; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+    .btn.icon { padding: 4px 8px; color: var(--muted); background: transparent; border-color: transparent; }
+    .btn.icon:hover { color: var(--text); }
+    kbd {
+      font: 11px ui-monospace, monospace; padding: 1px 5px; border-radius: 4px;
+      border: 1px solid currentColor; opacity: 0.6;
+    }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    form.net { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; color: var(--muted); }
+    .conn { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+    .conn::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--resting); }
+    .conn[data-state=connected]::before { background: var(--hopping); }
+    .conn[data-state=error]::before { background: var(--offline); }
+    .badge { font-size: 11px; padding: 1px 6px; border-radius: 4px; background: var(--surface-2); color: var(--accent); margin-left: 6px; vertical-align: 2px; }
+    .row .buttons { display: flex; gap: 8px; }
+    .field.wide { grid-column: 1 / -1; }
+    input[type=text], input[type=number], input[type=password], select {
+      font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 10px; min-width: 0;
+    }
+    form.net input { flex: 1; max-width: 260px; }
+
+    #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; align-items: start; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .card header { display: flex; align-items: center; gap: 10px; }
+    .card h2 { font-size: 15px; font-weight: 600; margin: 0; }
+    .host { color: var(--muted); font-size: 12px; }
+    .health { margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+    .health .low, .health .bad { color: var(--offline); font-weight: 600; }
+    .titles { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .swatch {
+      --led: transparent; width: 16px; height: 16px; border-radius: 50%; flex: none;
+      background: var(--led); border: 1px solid var(--border); transition: background .15s, box-shadow .15s;
+    }
+    .card.lit .swatch { border-color: var(--led); box-shadow: 0 0 14px 2px var(--led); }
+    .pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+    .pill[data-status=hopping] { color: var(--hopping); }
+    .pill[data-status=resting] { color: var(--resting); }
+    .pill[data-status=offline] { color: var(--offline); }
+
+    fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+    details { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
+    summary { cursor: pointer; color: var(--muted); user-select: none; }
+    summary:hover { color: var(--text); }
+    .settings { display: grid; gap: 10px; margin-top: 12px; }
+    .numbers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+    .input-unit { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+    .input-unit input { width: 100%; }
+    /* 44px touch targets, spaced away from the text box so thumbs don't land in it */
+    select { min-height: 44px; }
+    .nudge {
+      flex: none; width: 44px; height: 44px; padding: 0; justify-content: center;
+      font-size: 22px; line-height: 1; touch-action: manipulation;
+    }
+    .field.wide .input-unit { gap: 10px; }
+    .field.wide .input-unit input { height: 44px; }
+    .colour-field { display: flex; align-items: center; justify-content: space-between; }
+    input[type=color] { width: 44px; height: 28px; border: 1px solid var(--border); border-radius: 6px; background: none; padding: 2px; }
+
+    .toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle input {
+      appearance: none; width: 34px; height: 20px; border-radius: 999px; margin: 0; cursor: pointer;
+      background: var(--border); position: relative; transition: background .15s; flex: none;
+    }
+    .toggle input::after {
+      content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+      background: var(--text); transition: transform .15s;
+    }
+    .toggle input:checked { background: var(--accent); }
+    .toggle input:checked::after { transform: translateX(14px); background: var(--accent-ink); }
+    fieldset:disabled .toggle { opacity: 0.45; cursor: not-allowed; }
+
+    #empty { text-align: center; color: var(--muted); border: 1px dashed var(--border); border-radius: var(--radius); padding: 40px 16px; }
+    #empty p { margin: 4px 0; }
+    code { font: 12px ui-monospace, monospace; color: var(--text); }
+
+    .wifi { margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+    .wifi summary { color: var(--muted); }
+    .wifi summary span { color: var(--text); }
+    #wifi-form { display: grid; gap: 10px; margin-top: 12px; max-width: 420px; }
+    #wifi-form input { height: 44px; }
+    .wifi-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .wifi-actions .btn { min-height: 44px; }
+    .hint { margin: 0; color: var(--muted); font-size: 12px; }
+    .wifi-known { display: grid; gap: 8px; margin-top: 12px; max-width: 420px; }
+    .wifi-known ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .wifi-known li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .wifi-known .btn { min-height: 44px; }
+    #wifi-toggle { justify-self: start; }
+    .btn[data-armed] { border-color: var(--offline); color: var(--offline); }
+    #toast {
+      position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100% - 32px);
+      background: var(--surface-2); border: 1px solid var(--offline); color: var(--text);
+      border-radius: 8px; padding: 10px 14px;
+    }
+    @media (max-width: 560px) { .actions { margin-left: 0; } .actions kbd { display: none; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="top">
+      <h1>Fireflies</h1>
+      <span id="summary"></span>
+      <span class="conn" id="conn" data-state="connecting" role="status">Connecting…</span>
+      <div class="actions">
+        <button class="btn primary" data-global="hop" disabled>Hop all <kbd>H</kbd></button>
+        <button class="btn" data-global="ripple" disabled>Ripple <kbd>R</kbd></button>
+        <button class="btn" data-global="toggle" disabled>Pause all <kbd>P</kbd></button>
+      </div>
+    </header>
+
+    <form class="net" id="net-form" autocomplete="off" hidden>
+      <label for="net-host">Firefly network</label>
+      <input type="text" id="net-host" placeholder="fireflies.local or 192.168.4.1">
+      <button class="btn" type="submit">Connect</button>
+    </form>
+
+    <details class="wifi" id="wifi" hidden>
+      <summary>Wi-Fi: <span id="wifi-status">…</span></summary>
+      <div class="wifi-known">
+        <p class="hint">Saved networks</p>
+        <ul id="wifi-networks"></ul>
+        <button class="btn" type="button" id="wifi-toggle" hidden></button>
+      </div>
+      <form id="wifi-form" autocomplete="off">
+        <p class="hint">Somewhere new? Enter the Wi-Fi here. The master restarts and joins it, and the other fireflies follow.</p>
+        <label class="field">Network name <input type="text" id="wifi-ssid" maxlength="32" required autocapitalize="off" spellcheck="false"></label>
+        <label class="field">Password <input type="password" id="wifi-password" maxlength="63" placeholder="leave empty for an open network"></label>
+        <div class="wifi-actions">
+          <button class="btn primary" type="submit">Save &amp; join</button>
+        </div>
+        <p class="hint" id="wifi-note" hidden></p>
+      </form>
+    </details>
+
+    <section id="empty" hidden>
+      <p>No fireflies found yet.</p>
+      <p>Power on a firefly. The first one becomes the master and the others join it.</p>
+    </section>
+
+    <section id="grid" aria-label="Fireflies"></section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+
+  <template id="bug-card">
+    <article class="card">
+      <header>
+        <span class="swatch" data-swatch aria-hidden="true"></span>
+        <div class="titles">
+          <h2><span data-name></span><span class="badge" data-master hidden>master</span></h2>
+          <div class="host" data-id></div>
+        </div>
+        <span class="pill" data-status></span>
+      </header>
+      <p class="health" data-health></p>
+      <fieldset data-controls>
+        <div class="row">
+          <label class="toggle"><input type="checkbox" role="switch" data-setting="hopping"> Hopping</label>
+          <span class="buttons">
+            <button class="btn" data-action="identify" title="Flash white to find this firefly">Identify</button>
+            <button class="btn primary" data-action="hop">Hop</button>
+          </span>
+        </div>
+        <details>
+          <summary>Settings</summary>
+          <div class="settings">
+            <label class="field">Name <input type="text" data-name-input maxlength="19"></label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="randomColour"> Random colour</label>
+            <label class="colour-field" data-colour-field>LED colour <input type="color" data-setting="colour" value="#ffc940"></label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="rainbowHop"> Rainbow while jumping</label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="fireflyGlow"> Firefly glow between hops</label>
+            <label class="field">Glow colour
+              <select data-setting="glowColourMode">
+                <option value="fixed">Fixed colour</option>
+                <option value="random">Random each glow</option>
+                <option value="jump">Match the jump</option>
+              </select>
+            </label>
+            <label class="colour-field" data-glow-colour-field>Fixed glow colour <input type="color" data-setting="glowColour" value="#b4ff28"></label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="stayLit"> Stay lit</label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="holdServo"> Hold servo between hops</label>
+            <label class="toggle"><input type="checkbox" role="switch" data-setting="onboardLed"> Onboard LED (blue, on the board)</label>
+            <div class="numbers" data-numbers></div>
+            <button class="btn" data-action="apply-all" title="Copies colour, timing and hopping (not name or servo pulses)">Apply to all fireflies</button>
+          </div>
+        </details>
+      </fieldset>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+include/secrets.h
+data/
+.pio/
+src/generated/
