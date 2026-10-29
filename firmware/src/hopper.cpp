@@ -1,9 +1,15 @@
 #include "hopper.h"
 
+#include "motion.h"
+
 namespace {
 
 constexpr uint32_t kWhite = 0xffffff;
 constexpr uint32_t kServoPeriodUs = 20000;  // standard 50 Hz servo frame
+constexpr uint32_t kSettleMs = 300;         // keep pulsing this long after a swing so the arm fully lands
+constexpr uint32_t kJumpSettleMs = 600;     // direct moves (boot, calibration) at full servo speed
+constexpr uint32_t kEdgeMarginUs = 150;     // keep LED frames this far from servo pulse edges
+constexpr uint32_t kLedFrameUs = 120;       // 2 WS2812s take ~60 us; leave headroom
 constexpr uint32_t kLedRefreshMs = 1000;
 constexpr uint16_t kHueSteps = 1536;  // hueToRgb's full colour wheel
 constexpr uint32_t kFirstGlowMs = 2000;         // after boot / switching the glow on
@@ -58,6 +64,7 @@ void Hopper::setSettings(const ff::Settings& settings, uint32_t now) {
 }
 
 void Hopper::loop(uint32_t now) {
+  if (swinging_) advanceSwing(now);
   if (pending_ && (int32_t)(now - pendingAt_) >= 0) {
     pending_ = false;
     hop(now);
@@ -89,8 +96,12 @@ bool Hopper::takeChanged() {
 }
 
 void Hopper::hop(uint32_t now) {
+  fromUs_ = servoUs_;
   atB_ = !atB_;
-  driveServo();
+  toUs_ = targetUs();
+  swingStart_ = now;
+  swinging_ = true;
+  driveServoUs(fromUs_, 0);  // pulse continuously while the swing is in progress
   hopHue_ = random(kHueSteps);
   nextColour_ = settings_.rainbowHop ? hueToRgb(hopHue_) : pickColour();  // shown after the LED delay
   colourPending_ = true;
@@ -119,15 +130,58 @@ void Hopper::scheduleNext(uint32_t now) {
   nextHop_ = now + 1000UL * random(lo, hi + 1);
 }
 
+uint16_t Hopper::targetUs() const { return atB_ ? settings_.pulseB : settings_.pulseA; }
+
+// Direct move to the current end at full servo speed (boot, calibration, hold toggle).
+void Hopper::driveServo() {
+  swinging_ = false;
+  driveServoUs(targetUs(), settings_.holdServo ? 0 : kJumpSettleMs * 1000);
+}
+
+// "Swing time" is the real duration of the swing: the pulse width eases from one end to
+// the other, so the arm starts and lands gently (it can't beat the servo's top speed).
+void Hopper::advanceSwing(uint32_t now) {
+  uint32_t t = now - swingStart_;
+  if (t >= settings_.swingMs) {
+    swinging_ = false;
+    driveServoUs(toUs_, settings_.holdServo ? 0 : kSettleMs * 1000);
+    return;
+  }
+  uint16_t us = ff::swingPulse(fromUs_, toUs_, t, settings_.swingMs);
+  if (us != servoUs_) driveServoUs(us, 0);
+}
+
 // Drives the servo signal straight from the core's waveform generator rather than the Servo
 // library: Servo::detach() cut a pulse short, and that runt pulse made the arm snap back to
-// end A. With a run time, the waveform stops at the end of a full period, so the servo
-// gets clean pulses for swingMs and then silence (released: no hum, less power).
-// holdServo keeps pulsing instead, for servos that drift or arms that get pushed by wind.
-void Hopper::driveServo() {
-  uint32_t us = constrain(atB_ ? settings_.pulseB : settings_.pulseA, cfg::kServoMinUs, cfg::kServoMaxUs);
-  uint32_t runUs = settings_.holdServo ? 0 : (uint32_t)settings_.swingMs * 1000;
+// end A. With a run time, the waveform stops at the end of a full period (clean release).
+// Also records the pulse timing so LED frames can be sent between servo edges.
+void Hopper::driveServoUs(uint32_t us, uint32_t runUs) {
+  us = constrain(us, cfg::kServoMinUs, cfg::kServoMaxUs);
+  uint32_t nowUs = micros();
+  if (!servoRunning(nowUs)) servoT0Us_ = nowUs;  // a new waveform starts its period now
+  servoUs_ = us;
+  servoUntilUs_ = runUs ? nowUs + runUs + kServoPeriodUs : 0;  // 0 = until told otherwise
+  servoActive_ = true;
   startWaveform(cfg::kServoPin, us, kServoPeriodUs - us, runUs);
+}
+
+bool Hopper::servoRunning(uint32_t nowUs) const {
+  return servoActive_ && (servoUntilUs_ == 0 || (int32_t)(servoUntilUs_ - nowUs) > 0);
+}
+
+// The servo waveform runs from an NMI that the NeoPixel code can't mask; an edge landing
+// inside a WS2812 frame garbles it (an LED "now and again" showing the wrong colour). The
+// waveform is phase-locked to when it started, so send frames only in the quiet gap.
+void Hopper::waitForQuietServo() {
+  uint32_t deadline = micros() + kServoPeriodUs / 4;  // never stall more than ~5 ms
+  while ((int32_t)(deadline - micros()) > 0) {
+    uint32_t nowUs = micros();
+    if (!servoRunning(nowUs)) return;
+    uint32_t elapsed = nowUs - servoT0Us_;
+    if (elapsed > 1000000000UL) servoT0Us_ += elapsed / kServoPeriodUs * kServoPeriodUs;  // stay clear of wrap
+    uint32_t phase = (nowUs - servoT0Us_) % kServoPeriodUs;
+    if (phase > servoUs_ + kEdgeMarginUs && phase < kServoPeriodUs - kEdgeMarginUs - kLedFrameUs) return;
+  }
 }
 
 // LED level after a hop: dark for ledDelayMs (servo lag; Stay lit keeps the old colour up),
@@ -200,6 +254,7 @@ void Hopper::show(uint32_t rgb, uint8_t level) {
   shownRgb_ = rgb;
   shownLevel_ = level;
   shownAt_ = now;
+  waitForQuietServo();
   pixel_.fill(pixel_.Color(scale(rgb >> 16, level), scale(rgb >> 8 & 0xff, level), scale(rgb & 0xff, level)));
   pixel_.show();
 }

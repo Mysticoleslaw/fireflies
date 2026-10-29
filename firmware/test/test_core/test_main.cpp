@@ -3,6 +3,7 @@
 
 #include "election.h"
 #include "firefly.h"
+#include "motion.h"
 #include "protocol.h"
 #include "roster.h"
 #include "settings.h"
@@ -443,6 +444,31 @@ void test_rainbow_and_glow_random_settings() {
   TEST_ASSERT_EQUAL(0, defaultSettings(A).rainbowHop);
 }
 
+// ---------- servo swing ----------
+
+void test_ease_in_out() {
+  TEST_ASSERT_EQUAL(0, easeInOut(0));
+  TEST_ASSERT_EQUAL(500, easeInOut(500));
+  TEST_ASSERT_EQUAL(1000, easeInOut(1000));
+  TEST_ASSERT_TRUE(easeInOut(100) < 100);   // slow start
+  TEST_ASSERT_TRUE(easeInOut(900) > 900);   // slow landing
+}
+
+void test_swing_pulse_moves_gradually_both_ways() {
+  TEST_ASSERT_EQUAL(500, swingPulse(500, 2500, 0, 1000));
+  TEST_ASSERT_EQUAL(1500, swingPulse(500, 2500, 500, 1000));   // halfway
+  TEST_ASSERT_EQUAL(2500, swingPulse(500, 2500, 1000, 1000));  // landed
+  TEST_ASSERT_EQUAL(2500, swingPulse(500, 2500, 5000, 1000));  // stays landed
+  TEST_ASSERT_EQUAL(1500, swingPulse(2500, 500, 500, 1000));   // reverse direction
+  uint16_t prev = 2500;
+  for (uint32_t t = 0; t <= 1000; t += 50) {                   // monotonic on the way back
+    uint16_t us = swingPulse(2500, 500, t, 1000);
+    TEST_ASSERT_TRUE(us <= prev);
+    prev = us;
+  }
+  TEST_ASSERT_EQUAL(2500, swingPulse(500, 2500, 0, 0));        // zero length = jump
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_mac_hex_round_trip);
@@ -479,5 +505,7 @@ int main() {
   RUN_TEST(test_glow_pulse_brightness);
   RUN_TEST(test_glow_counts_bursts);
   RUN_TEST(test_rainbow_and_glow_random_settings);
+  RUN_TEST(test_ease_in_out);
+  RUN_TEST(test_swing_pulse_moves_gradually_both_ways);
   return UNITY_END();
 }

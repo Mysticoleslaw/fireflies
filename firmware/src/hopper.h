@@ -27,6 +27,11 @@ class Hopper {
   void hop(uint32_t now);
   void scheduleNext(uint32_t now);
   void driveServo();
+  uint16_t targetUs() const;
+  void advanceSwing(uint32_t now);
+  void driveServoUs(uint32_t us, uint32_t runUs);
+  bool servoRunning(uint32_t nowUs) const;
+  void waitForQuietServo();
   uint8_t envelope(uint32_t now) const;
   void updateLed(uint32_t now);
   void show(uint32_t rgb, uint8_t level);
@@ -41,6 +46,13 @@ class Hopper {
 
   bool atB_ = false;
   bool servoReady_ = false;
+  bool swinging_ = false;
+  uint32_t swingStart_ = 0;
+  uint16_t fromUs_ = 0, toUs_ = 0;
+  uint16_t servoUs_ = 0;        // pulse width currently being sent
+  bool servoActive_ = false;
+  uint32_t servoT0Us_ = 0;      // when the current waveform started (its pulses are phase-locked to this)
+  uint32_t servoUntilUs_ = 0;   // when it stops (0 = runs until told otherwise)
   bool hopped_ = false;      // LED envelope running since lastHop_
   bool pending_ = false;     // a delayed hop (ripple) is queued
   bool identifying_ = false;

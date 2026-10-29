@@ -32,7 +32,7 @@ All responses send `Access-Control-Allow-Origin: *`, so the app can also run fro
     "brightness": 100,         // %, 5..100
     "minWait": 10,             // s, 1..600
     "maxWait": 30,             // s, 1..600
-    "swingMs": 500,            // 100..2000
+    "swingMs": 500,            // 100..2000: how long the swing takes (eased; can't beat the servo's top speed)
     "ledDelayMs": 100,         // 0..1000: LED lights this long after the servo starts (servo lag)
     "fireflyGlow": true,       // blink like a firefly between hops (bursts of soft pulses)
     "glowColour": "#b4ff28",   // firefly yellow-green
