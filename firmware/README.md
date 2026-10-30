@@ -14,7 +14,7 @@ Open the app at `http://fireflies.local/` on home Wi-Fi, or join the `Fireflies`
 - D2 (GPIO4) -> 330 Ω -> WS2812B DIN (2 LEDs folded back-to-back; set `kLedCount` in `src/config.h` for other counts)
 - D4 (GPIO2) is left free: it drives the D1 mini's blue onboard LED (the "Onboard LED" setting, off by default)
 - 5V -> servo + LED, GND common, 470 µF across 5V/GND
-- Optional battery monitor: **180 kΩ from battery + (5V pin) to A0**. The app then shows the voltage, and turns it red below 3.6 V
+- Optional battery monitor: **220 kΩ from battery + (5V pin) to A0**. The app then shows the voltage, and turns it red below 3.6 V
 
 ## Setup
 1. `cp include/secrets.example.h include/secrets.h`, then fill it in. Every bug uses the same file.

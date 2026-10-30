@@ -17,8 +17,8 @@ constexpr uint8_t kOnboardLedPin = 2;  // D4: blue LED on the D1 mini, lit when 
 constexpr uint8_t kLedCount = 2;  // folded back-to-back, both show the same colour
 constexpr uint16_t kServoMinUs = 400;   // matches the pulseA/pulseB setting limits
 constexpr uint16_t kServoMaxUs = 2600;
-// A0 reading at 1023: 1.0 V x (180k + 220k + 100k) / 100k. Tweak if your multimeter disagrees.
-constexpr uint16_t kBatteryFullScaleMv = 5000;
+// A0 reading at 1023: 1.0 V x (220k + 220k + 100k) / 100k. Tweak if your multimeter disagrees.
+constexpr uint16_t kBatteryFullScaleMv = 5400;
 
 // Network
 constexpr const char* kHostname = "fireflies";  // fireflies.local, master only

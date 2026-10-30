@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 // Battery voltage on A0. The D1 mini has a 220k/100k divider on A0 (3.2 V full scale);
-// a 180k resistor from battery + to A0 stretches that to 5.0 V, enough for 3xAA / 4xNiMH.
+// a 220k resistor from battery + to A0 stretches that to 5.4 V, enough for 3xAA / 4xNiMH.
 namespace battery {
 
 void loop(uint32_t now);

@@ -15,7 +15,7 @@ A swarm of little lawn "fireflies" that hop and glow. Each one is a Wemos D1 min
 | 2× WS2812B data, through a 330 Ω resistor | D2 (GPIO4) |
 | Servo + LED power, battery (3×AA or 4×NiMH) | 5V / G |
 | 470 µF capacitor (recommended) | across 5V / G |
-| Battery monitor (optional): 180 kΩ | 5V to A0 |
+| Battery monitor (optional): 220 kΩ | 5V to A0 |
 
 ## Layout
 - [`firmware/`](firmware/): PlatformIO firmware: mesh, master election, hop and LED behaviour, web API. [README](firmware/README.md)
