@@ -78,3 +78,17 @@ test("batteryInfo formats volts and flags low batteries", async () => {
   assert.deepEqual(batteryInfo(3.5), { text: "3.50 V", low: true });
   assert.deepEqual(batteryInfo(null), { text: "—", low: false });
 });
+
+test("syncProgress counts online bugs whose settings match the target", async () => {
+  const { syncProgress } = await import("./bugs.js");
+  const target = { hopping: true, colour: "#FFA200", minWait: 30 };
+  const bugs = [
+    { id: "a", online: true, settings: { hopping: true, colour: "#ffa200", minWait: 30, pulseA: 600 } },
+    { id: "b", online: true, settings: { hopping: true, colour: "#ffa200", minWait: 5 } },
+    { id: "c", online: false, settings: {} },
+    // older firmware without a key can't apply it, so it isn't held against the bug
+    { id: "d", online: true, settings: { hopping: true, colour: "#ffa200" } },
+  ];
+  assert.deepEqual(syncProgress(bugs, target), { done: 2, total: 3, synced: ["a", "d"], pending: ["b"] });
+  assert.deepEqual(syncProgress([], target), { done: 0, total: 0, synced: [], pending: [] });
+});

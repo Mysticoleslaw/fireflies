@@ -107,3 +107,18 @@ export function summarize(bugs) {
     offline: statuses.filter((s) => s === "offline").length,
   };
 }
+
+const sameValue = (a, b) => (typeof a === "string" && typeof b === "string" ? a.toLowerCase() === b.toLowerCase() : a === b);
+
+/** True when every target key the bug reports has the target value (keys it doesn't report are skipped). */
+export function settingsMatch(settings = {}, target) {
+  return Object.entries(target).every(([key, value]) => !(key in settings) || sameValue(settings[key], value));
+}
+
+/** "Apply to all" progress over online bugs: { done, total, synced: [ids], pending: [ids] }. */
+export function syncProgress(bugs, target) {
+  const online = bugs.filter((b) => b.online);
+  const synced = online.filter((b) => settingsMatch(b.settings, target)).map((b) => b.id);
+  const pending = online.filter((b) => !synced.includes(b.id)).map((b) => b.id);
+  return { done: synced.length, total: online.length, synced, pending };
+}

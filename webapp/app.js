@@ -1,12 +1,16 @@
 // Fireflies control panel: talks to the master firefly, which relays to all the others (see ../API.md).
 import {
   DEFAULT_HOST, NAME_MAX, NUMBER_FIELDS, batteryInfo, isOutdated, normalizeHost, servedByBug, apiBase, apiUrl,
-  settingsParams, sharedSettings, sortBugs, bugStatus, summarize,
+  settingsParams, sharedSettings, sortBugs, bugStatus, summarize, syncProgress,
 } from "./bugs.js";
 
 const HOST_KEY = "fireflies.host";
 const RIPPLE_MS = 3000;
 const TOAST_MS = 5000;
+const SYNC_TIMEOUT_MS = 15000; // followers report status every 3 s; commands are sent 3 times
+const SYNC_DONE_MS = 4000;     // how long "All synced" stays up
+const SYNC_FAILED_MS = 10000;  // how long a timeout message stays up
+const SYNC_LABEL = { pending: "syncing…", synced: "synced ✓", failed: "not synced" };
 const STATUS_LABEL = { hopping: "Hopping", resting: "Resting", offline: "Offline" };
 const CONN_LABEL = { connecting: "Connecting…", connected: "Connected", error: "Can't reach the fireflies" };
 
@@ -15,6 +19,7 @@ const cards = new Map(); // id -> card element
 const sameOrigin = servedByBug(location);
 let base = "";
 let source = null;
+let sync = null; // "Apply to all" in progress: { target, state: "running" | "done" | "timeout", timer }
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const grid = $("#grid");
@@ -85,6 +90,7 @@ function upsertBug(bug) {
   renderCard(bug);
   if (!prev || prev.name !== bug.name || prev.master !== bug.master || prev.online !== bug.online) reorder();
   renderSummary();
+  renderSync();
 }
 
 function removeBug(id) {
@@ -92,6 +98,7 @@ function removeBug(id) {
   cards.get(id)?.remove();
   cards.delete(id);
   renderSummary();
+  renderSync();
 }
 
 // ---------- actions ----------
@@ -103,8 +110,10 @@ async function post(path, params) {
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error ?? `${res.status} ${res.statusText}`);
     }
+    return true;
   } catch (err) {
     showError(err.message);
+    return false;
   }
 }
 
@@ -117,9 +126,65 @@ function toggleAll() {
   setSettings("all", { hopping: !anyHopping });
 }
 
-function applyToAll(id) {
+async function applyToAll(id) {
   const bug = bugs.get(id);
-  if (bug) setSettings("all", sharedSettings(bug.settings));
+  if (!bug) return;
+  const target = sharedSettings(bug.settings);
+  startSync(target);
+  if (!(await setSettings("all", target))) endSync();
+}
+
+// ---------- "Apply to all" progress: each bug counts as synced once its reported settings match ----------
+
+function startSync(target) {
+  clearTimeout(sync?.timer);
+  sync = { target, state: "running", timer: setTimeout(() => finishSync("timeout"), SYNC_TIMEOUT_MS) };
+  renderSync();
+}
+
+function finishSync(state) {
+  clearTimeout(sync.timer);
+  sync = { ...sync, state, timer: setTimeout(endSync, state === "done" ? SYNC_DONE_MS : SYNC_FAILED_MS) };
+  renderSync();
+}
+
+function endSync() {
+  clearTimeout(sync?.timer);
+  sync = null;
+  renderSync();
+}
+
+function syncText({ done, total, pending }, state) {
+  const noun = total === 1 ? "firefly" : "fireflies";
+  if (state === "done") return `All ${total} ${noun} synced ✓`;
+  if (state === "timeout") {
+    const names = pending.map((id) => bugs.get(id)?.name ?? id).join(", ");
+    return `${done} of ${total} synced. No confirmation from: ${names}`;
+  }
+  return `Syncing settings… ${done} of ${total} ${noun}`;
+}
+
+function renderSync() {
+  const panel = $("#sync");
+  const progress = sync && syncProgress([...bugs.values()], sync.target);
+  if (sync?.state === "running" && progress.total && !progress.pending.length) return finishSync("done");
+  panel.hidden = !sync;
+  cards.forEach((card, id) => renderSyncTag($("[data-sync]", card), progress, id));
+  if (!sync) return;
+  panel.dataset.state = sync.state;
+  $("#sync-text").textContent = syncText(progress, sync.state);
+  $("#sync-fill").style.width = `${progress.total ? (100 * progress.done) / progress.total : 0}%`;
+}
+
+function renderSyncTag(tag, progress, id) {
+  const state = !progress ? null
+    : progress.synced.includes(id) ? "synced"
+    : progress.pending.includes(id) ? (sync.state === "timeout" ? "failed" : "pending")
+    : null;
+  tag.hidden = !state;
+  if (!state) return;
+  tag.dataset.sync = state;
+  tag.textContent = SYNC_LABEL[state];
 }
 
 // ---------- rendering ----------

@@ -130,6 +130,19 @@
     .wifi-known .btn { min-height: 44px; }
     #wifi-toggle { justify-self: start; }
     .btn[data-armed] { border-color: var(--offline); color: var(--offline); }
+    .sync {
+      display: grid; gap: 6px; margin-bottom: 20px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px; color: var(--muted);
+    }
+    .sync[data-state=done] { border-color: var(--hopping); }
+    .sync[data-state=timeout] { border-color: var(--offline); }
+    .sync .track { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .sync .fill { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+    .sync[data-state=done] .fill { background: var(--hopping); }
+    .sync[data-state=timeout] .fill { background: var(--offline); }
+    .badge.sync-tag[data-sync=pending] { color: var(--muted); }
+    .badge.sync-tag[data-sync=synced] { color: var(--hopping); }
+    .badge.sync-tag[data-sync=failed] { color: var(--offline); }
     #toast {
       position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); max-width: calc(100% - 32px);
       background: var(--surface-2); border: 1px solid var(--offline); color: var(--text);
@@ -175,6 +188,11 @@
       </form>
     </details>
 
+    <section class="sync" id="sync" role="status" aria-live="polite" hidden>
+      <span id="sync-text"></span>
+      <div class="track"><div class="fill" id="sync-fill"></div></div>
+    </section>
+
     <section id="empty" hidden>
       <p>No fireflies found yet.</p>
       <p>Power on a firefly. The first one becomes the master and the others join it.</p>
@@ -190,7 +208,7 @@
       <header>
         <span class="swatch" data-swatch aria-hidden="true"></span>
         <div class="titles">
-          <h2><span data-name></span><span class="badge" data-master hidden>master</span></h2>
+          <h2><span data-name></span><span class="badge" data-master hidden>master</span><span class="badge sync-tag" data-sync hidden></span></h2>
           <div class="host" data-id></div>
         </div>
         <span class="pill" data-status></span>

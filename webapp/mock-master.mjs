@@ -145,9 +145,10 @@ function handlePost(path, params) {
     const { settings, name, error } = parseSettings(params);
     if (error) return error;
     if (name !== undefined && ids.length !== 1) return "name can only be set on a single bug";
-    ids.forEach((id) => update(id, {
+    // Like the real mesh: each bug's new settings show up with its next status packet (every ~3 s).
+    ids.forEach((id) => setTimeout(() => update(id, {
       ...(name ? { name } : {}), settings: { ...bugs.get(id).settings, ...settings },
-    }));
+    }), ids.length > 1 ? rand(3500) : 0));
   } else return "unknown endpoint";
   return null;
 }
