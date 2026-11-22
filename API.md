@@ -56,6 +56,7 @@ All responses send `Access-Control-Allow-Origin: *`, so the app can also run fro
 | GET | `/api/events` | SSE (requires `Accept: text/event-stream`, which browsers' EventSource sends; for curl, add `-H "Accept: text/event-stream"`). `bug` event = one Bug JSON whenever it changes; `gone` event = `{"id": "..."}` when a bug has been offline for 10 minutes and is dropped from the list |
 | POST | `/api/hop?id=<id or all>` | hop now |
 | POST | `/api/ripple?ms=3000` | every bug hops after a random 0..ms delay (ms clamped 0..10000) |
+| GET | `/firmware.bin` | the master's own running firmware, for followers on an older build (sent by `ESP8266httpUpdate`). Needs header `x-ESP8266-version: <the caller's build time>`: 304 unless the caller's build is older, 400 without it. Sends `x-MD5` |
 | POST | `/api/update?id=<id or all>&minutes=10` | followers join home Wi-Fi with OTA open for N (1-30) minutes; master must be on home Wi-Fi. Used by `scripts/update_all.py` |
 | POST | `/api/identify?id=<id>` | bug flashes white 3 times |
 | POST | `/api/settings?id=<id or all>&<key>=<value>...` | sets only the keys you send. Keys match `settings`, plus `name` (single bug only). Booleans are `1`/`0`, colours are `rrggbb` with no `#`. Out-of-range values are clamped |
@@ -75,5 +76,7 @@ These packets are internal to the firmware and shown here for reference. Every p
 - `BEACON` (master, every 500 ms): master uptime and Wi-Fi mode
 - `STATUS` (every bug, every 3 s and when its state changes): name, settings, lit, colour, uptime
 - `COMMAND` (master → target id or all, sent 3 times, receivers de-duplicate by seq): hop, ripple, identify, or settings with a field mask
+  - When a bug joins (new, or back after 10 s offline), the master sends it its shared settings (all fields except name, servo pulses and position) unless it already matches.
+  - `Fetch` (master → one bug on another build): `arg` = the master's network mode, `mask` = its IPv4. The bug joins that network (home Wi-Fi, or the `Fireflies` hotspot) and downloads `/firmware.bin`. One bug at a time, from 60 s after the master boots, at most 2 tries per bug, paused while any bug is in Mac update mode; bugs below 3.9 V skip it. Older firmware ignores `Fetch`.
 
 Choosing the master: at boot a bug scans for the home Wi-Fi (up to 3 times). It then listens on the home channel(s) and channel 1, or on all 13 channels if home Wi-Fi is configured but out of reach, visiting each channel twice. If it hears no beacon in that time (plus a random delay of up to 7 s), it becomes master. When two masters hear each other, the one with the longer uptime wins, and if uptimes tie, the lower MAC wins. Followers start a new search after 5 s without a beacon.
