@@ -71,6 +71,9 @@ enum SettingField : uint32_t {
   kGlowBrightMax = 1UL << 27,
 };
 constexpr uint32_t kAllFields = (1UL << 28) - 1;
+// Per bug (calibration, identity, placement); everything else is shared by the swarm.
+constexpr uint32_t kPerBugFields = kName | kPulseA | kPulseB | kPosition;
+constexpr uint32_t kSharedFields = kAllFields & ~kPerBugFields;
 
 // Colour of the firefly glow: the fixed glowColour, a random one per burst, or the jump's colour.
 enum GlowColourMode : uint8_t { kGlowFixed = 0, kGlowRandomColour = 1, kGlowMatchJump = 2 };
@@ -79,6 +82,8 @@ const char* glowModeName(uint8_t mode);  // "fixed" | "random" | "jump"
 Settings defaultSettings(const Mac& mac);
 Settings clampSettings(Settings s);
 Settings applyMasked(const Settings& base, const Settings& patch, uint32_t mask);
+// True when `bug` already has all of `master`'s shared settings.
+bool sharedSettingsMatch(const Settings& bug, const Settings& master);
 
 // Parses one API query param (e.g. "minWait", "12") into patch and sets its bit in mask.
 // Returns nullptr on success, otherwise an error message.

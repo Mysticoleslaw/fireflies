@@ -133,8 +133,27 @@ void Node::masterLoop(uint32_t now) {
   }
   if (now - lastBeacon_ >= cfg::kBeaconMs && radio::ready()) sendBeacon(now);
   roster_.sweep(now);
+  pushSettingsToJoiner();
   roster_.removeGone(now, gateway::gone);
   if (gatewayStarted_) roster_.drainDirty(gateway::publish, cfg::kPublishPerLoop);
+}
+
+// A bug that joins (new, or back after going offline) gets the master's shared settings, so one
+// switched on after "Apply to all" still matches the swarm. Its name, servo pulses and position
+// stay its own. One per loop, so a whole swarm rejoining doesn't flood the send queue.
+void Node::pushSettingsToJoiner() {
+  if (inboxCount_ >= kQueueLen) return;  // try again next loop
+  ff::Mac mac;
+  if (!roster_.takeJoined(mac) || mac == self_) return;
+  const ff::RosterEntry* e = roster_.find(mac);
+  if (!e || ff::sharedSettingsMatch(e->status.settings, settings_)) return;
+  ff::CommandPacket c{};
+  c.target = mac;
+  c.command = (uint8_t)ff::CommandType::Settings;
+  c.mask = ff::kSharedFields;
+  c.settings = settings_;
+  queueCommand(c);
+  Serial.printf("[mesh] sent the master's settings to %s\n", e->status.settings.name);
 }
 
 // A master restarting on purpose (Wi-Fi changes, recovery) first tells followers to hold,

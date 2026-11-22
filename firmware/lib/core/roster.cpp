@@ -21,12 +21,22 @@ bool Roster::upsert(const Mac& mac, const StatusBody& status, uint32_t now) {
     bool restarted = status.uptimeMs < e.status.uptimeMs;
     bool changed = !e.online || restarted || !sameState(e.status, status);
     e = RosterEntry{mac, status, now, true, e.dirty || changed,
-                    (uint16_t)(e.restarts + restarted), e.dropouts};
+                    (uint16_t)(e.restarts + restarted), e.dropouts, e.joined || !e.online};
     return true;
   }
   if (count_ == kCapacity) return false;
-  entries_[count_++] = RosterEntry{mac, status, now, true, true, 0, 0};
+  entries_[count_++] = RosterEntry{mac, status, now, true, true, 0, 0, true};
   return true;
+}
+
+bool Roster::takeJoined(Mac& out) {
+  for (size_t i = 0; i < count_; i++) {
+    if (!entries_[i].joined) continue;
+    entries_[i].joined = false;
+    out = entries_[i].mac;
+    return true;
+  }
+  return false;
 }
 
 const RosterEntry* Roster::find(const Mac& mac) const {

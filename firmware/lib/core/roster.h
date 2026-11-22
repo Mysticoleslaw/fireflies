@@ -15,6 +15,7 @@ struct RosterEntry {
   bool dirty;          // changed since last published
   uint16_t restarts;   // uptime went backwards while we watched
   uint16_t dropouts;   // went silent for kOfflineMs
+  bool joined;         // new, or back after going offline: due the master's settings
 };
 
 class Roster {
@@ -28,6 +29,8 @@ class Roster {
   // Marks bugs offline after kOfflineMs of silence.
   void sweep(uint32_t now);
   const RosterEntry* find(const Mac& mac) const;
+  // A bug that joined since the last call (oldest first); each join is reported once.
+  bool takeJoined(Mac& out);
 
   size_t size() const { return count_; }
   const RosterEntry& at(size_t i) const { return entries_[i]; }

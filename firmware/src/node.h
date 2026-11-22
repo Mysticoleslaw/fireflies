@@ -31,6 +31,7 @@ class Node {
   void handleRoleChange(uint32_t now);
   void becomeMaster(uint32_t now);
   void masterLoop(uint32_t now);
+  void pushSettingsToJoiner();
   void restart(uint32_t now);
   void drainRadio(uint32_t now);
   void handleCommand(const ff::Mac& from, const ff::CommandPacket& c, uint32_t now);

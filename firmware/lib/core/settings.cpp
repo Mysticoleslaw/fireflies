@@ -217,4 +217,9 @@ const char* parseSettingParam(const char* key, const char* value, Settings& patc
   return err;
 }
 
+bool sharedSettingsMatch(const Settings& bug, const Settings& master) {
+  Settings merged = applyMasked(bug, master, kSharedFields);
+  return memcmp(&merged, &bug, sizeof bug) == 0;
+}
+
 }  // namespace ff

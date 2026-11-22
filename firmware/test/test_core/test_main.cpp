@@ -288,6 +288,34 @@ void test_roster_offline_and_back() {
   TEST_ASSERT_TRUE(r.at(0).online);
 }
 
+void test_roster_reports_joins_once() {
+  Roster r;
+  Mac out{};
+  TEST_ASSERT_FALSE(r.takeJoined(out));
+  r.upsert(A, status(0, 0), 0);                   // new bug: joined
+  TEST_ASSERT_TRUE(r.takeJoined(out));
+  TEST_ASSERT_TRUE(out == A);
+  TEST_ASSERT_FALSE(r.takeJoined(out));           // reported once
+  r.upsert(A, status(3000, 1), 3000);             // still online: not a join
+  TEST_ASSERT_FALSE(r.takeJoined(out));
+  r.sweep(3000 + Roster::kOfflineMs + 1);         // went offline...
+  r.upsert(A, status(20000, 0), 20000);           // ...and came back: joined again
+  TEST_ASSERT_TRUE(r.takeJoined(out));
+}
+
+void test_shared_settings_skip_per_bug_fields() {
+  Settings master = defaultSettings(A), bug = defaultSettings(B);
+  bug.pulseA = master.pulseA + 100;               // calibration is per bug
+  bug.pulseB = master.pulseB - 100;
+  TEST_ASSERT_TRUE(sharedSettingsMatch(bug, master));  // names differ too: still a match
+  bug.swingMs = master.swingMs + 100;
+  TEST_ASSERT_FALSE(sharedSettingsMatch(bug, master));
+  Settings pushed = applyMasked(bug, master, kSharedFields);
+  TEST_ASSERT_EQUAL(master.swingMs, pushed.swingMs);
+  TEST_ASSERT_EQUAL(master.pulseA + 100, pushed.pulseA);  // kept
+  TEST_ASSERT_EQUAL_STRING(bug.name, pushed.name);        // kept
+}
+
 void test_roster_counts_restarts_and_dropouts() {
   Roster r;
   r.upsert(A, status(60000, 0), 0);
@@ -504,6 +532,8 @@ int main() {
   RUN_TEST(test_roster_drain_respects_limit_and_refusal);
   RUN_TEST(test_roster_removes_gone_bugs);
   RUN_TEST(test_roster_offline_and_back);
+  RUN_TEST(test_roster_reports_joins_once);
+  RUN_TEST(test_shared_settings_skip_per_bug_fields);
   RUN_TEST(test_roster_counts_restarts_and_dropouts);
   RUN_TEST(test_roster_capacity);
   RUN_TEST(test_pulse_shape);
