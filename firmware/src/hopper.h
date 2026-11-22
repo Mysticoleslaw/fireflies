@@ -25,6 +25,8 @@ class Hopper {
   bool takeChanged();
   // True once after the arm has landed on a new end (and settled), so it can be saved.
   bool takeLanded(uint32_t now, bool& atB);
+  // The arm is moving, or its landing isn't saved yet: not a safe moment to reboot.
+  bool busy() const { return swinging_ || endDirty_; }
 
  private:
   void hop(uint32_t now);

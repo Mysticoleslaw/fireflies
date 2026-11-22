@@ -6,6 +6,7 @@
 #include "battery.h"
 #include "generated/build_info.h"
 #include "config.h"
+#include "fetch.h"
 #include "gateway.h"
 #include "network.h"
 #include "radio.h"
@@ -56,6 +57,7 @@ void Node::loop(uint32_t now) {
   if (election_.role() == ff::Role::Master) masterLoop(now);
   if (restartAt_) restart(now);
   if (updater::loop(now)) restart(now);  // update window over without an update
+  fetch::loop(now, hopper_.busy());
   drainInbox(now);
   flushOutgoing(now);
   statusLoop(now);
@@ -134,6 +136,7 @@ void Node::masterLoop(uint32_t now) {
   if (now - lastBeacon_ >= cfg::kBeaconMs && radio::ready()) sendBeacon(now);
   roster_.sweep(now);
   pushSettingsToJoiner();
+  pushFirmwareToStale(now);
   roster_.removeGone(now, gateway::gone);
   if (gatewayStarted_) roster_.drainDirty(gateway::publish, cfg::kPublishPerLoop);
 }
@@ -154,6 +157,34 @@ void Node::pushSettingsToJoiner() {
   c.settings = settings_;
   queueCommand(c);
   Serial.printf("[mesh] sent the master's settings to %s\n", e->status.settings.name);
+}
+
+// Followers on another build are told, one at a time, to fetch the master's firmware (they
+// only take it if it's newer). See ff::Rollout for the pacing and give-up rules.
+void Node::pushFirmwareToStale(uint32_t now) {
+  if (inboxCount_ >= kQueueLen) return;
+  uint32_t ip = net::masterIp();
+  ff::Mac mac;
+  if (!ip || !rollout_.next(roster_, FF_BUILD_ID, self_, now, mac)) return;
+  ff::CommandPacket c{};
+  c.target = mac;
+  c.command = (uint8_t)ff::CommandType::Fetch;
+  c.arg = (uint16_t)net::mode();
+  c.mask = ip;  // Fetch carries the master's address in the (otherwise unused) mask
+  queueCommand(c);
+  const ff::RosterEntry* e = roster_.find(mac);
+  Serial.printf("[update] telling %s to fetch this firmware\n", e ? e->status.settings.name : "a bug");
+}
+
+// Only ever for this bug by name (never a broadcast), only as a follower, and not on flat cells.
+void Node::startFetch(const ff::CommandPacket& c, uint32_t now) {
+  if (election_.role() != ff::Role::Follower || !(c.target == self_)) return;
+  uint16_t mv = battery::millivolts();
+  if (mv && mv < cfg::kFetchMinBatteryMv) {
+    Serial.printf("[fetch] battery %u mV is too low for a firmware download, skipping\n", mv);
+    return;
+  }
+  fetch::start(now, (ff::NetMode)c.arg, c.mask);
 }
 
 // A master restarting on purpose (Wi-Fi changes, recovery) first tells followers to hold,
@@ -243,6 +274,7 @@ void Node::applyCommand(const ff::CommandPacket& c, uint32_t now) {
     case ff::CommandType::Update:
       if (election_.role() == ff::Role::Follower) updater::start(now, c.arg);  // master updates directly
       break;
+    case ff::CommandType::Fetch: startFetch(c, now); break;
     case ff::CommandType::Hold:
       holdUntil_ = now + c.arg * 1000UL;
       Serial.printf("[mesh] master restarting, holding for %u s\n", c.arg);

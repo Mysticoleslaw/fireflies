@@ -3,6 +3,7 @@
 #include "hopper.h"
 #include "network.h"
 #include "protocol.h"
+#include "rollout.h"
 #include "roster.h"
 #include "settings.h"
 
@@ -32,6 +33,8 @@ class Node {
   void becomeMaster(uint32_t now);
   void masterLoop(uint32_t now);
   void pushSettingsToJoiner();
+  void pushFirmwareToStale(uint32_t now);
+  void startFetch(const ff::CommandPacket& c, uint32_t now);
   void restart(uint32_t now);
   void drainRadio(uint32_t now);
   void handleCommand(const ff::Mac& from, const ff::CommandPacket& c, uint32_t now);
@@ -50,6 +53,7 @@ class Node {
   Hopper hopper_;
   ff::Election election_{ff::Mac{}};
   ff::Roster roster_;
+  ff::Rollout rollout_;
   ff::Role lastRole_ = ff::Role::Searching;
 
   bool scanning_ = false;

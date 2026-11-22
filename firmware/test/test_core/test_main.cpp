@@ -6,6 +6,7 @@
 #include "motion.h"
 #include "protocol.h"
 #include "roster.h"
+#include "rollout.h"
 #include "settings.h"
 
 using namespace ff;
@@ -303,6 +304,83 @@ void test_roster_reports_joins_once() {
   TEST_ASSERT_TRUE(r.takeJoined(out));
 }
 
+// ---------- firmware rollout (master upgrades followers to its own build) ----------
+
+static StatusBody onBuild(uint32_t build, uint32_t ip = 0) {
+  StatusBody s = status(1000, 0);
+  s.build = build;
+  s.ip = ip;
+  return s;
+}
+
+static constexpr uint32_t kNew = 0x2222, kOld = 0x1111;
+static const uint32_t kReady = Rollout::kStartAfterMs;  // master uptime once it may start
+
+void test_rollout_waits_for_the_master_to_settle() {
+  Roster r;
+  Rollout ro;
+  Mac out{};
+  r.upsert(B, onBuild(kOld), 0);
+  TEST_ASSERT_FALSE(ro.next(r, kNew, A, kReady - 1, out));
+  r.upsert(B, onBuild(kOld), kReady);
+  TEST_ASSERT_TRUE(ro.next(r, kNew, A, kReady, out));
+  TEST_ASSERT_TRUE(out == B);
+}
+
+void test_rollout_picks_only_online_out_of_date_followers() {
+  Roster r;
+  Rollout ro;
+  Mac out{};
+  uint32_t t = kReady;
+  r.upsert(A, onBuild(kOld), t);   // the master itself (self)
+  r.upsert(B, onBuild(kNew), t);   // already up to date
+  r.upsert(C, onBuild(kOld), 0);
+  r.sweep(t);                      // C went offline
+  r.upsert(A, onBuild(kOld), t);
+  r.upsert(B, onBuild(kNew), t);
+  TEST_ASSERT_FALSE(ro.next(r, kNew, A, t, out));
+}
+
+void test_rollout_one_at_a_time_then_the_next() {
+  Roster r;
+  Rollout ro;
+  Mac out{};
+  uint32_t t = kReady;
+  r.upsert(B, onBuild(kOld), t);
+  r.upsert(C, onBuild(kOld), t);
+  TEST_ASSERT_TRUE(ro.next(r, kNew, A, t, out));
+  TEST_ASSERT_TRUE(out == B);
+  TEST_ASSERT_FALSE(ro.next(r, kNew, A, t + 1000, out));  // B still updating
+  r.upsert(B, onBuild(kNew), t + 30000);                   // B came back on the new build
+  r.upsert(C, onBuild(kOld), t + 30000);
+  TEST_ASSERT_TRUE(ro.next(r, kNew, A, t + 30000, out));
+  TEST_ASSERT_TRUE(out == C);
+}
+
+void test_rollout_retries_once_then_gives_up() {
+  Roster r;
+  Rollout ro;
+  Mac out{};
+  uint32_t t = kReady;
+  for (uint8_t i = 0; i < Rollout::kMaxTries; i++) {
+    r.upsert(B, onBuild(kOld), t);
+    TEST_ASSERT_TRUE(ro.next(r, kNew, A, t, out));   // try
+    t += Rollout::kTimeoutMs;                         // no luck
+    r.upsert(B, onBuild(kOld), t);
+    TEST_ASSERT_FALSE(ro.next(r, kNew, A, t - 1, out));
+  }
+  TEST_ASSERT_FALSE(ro.next(r, kNew, A, t, out));     // given up on B
+}
+
+void test_rollout_pauses_while_the_mac_is_updating() {
+  Roster r;
+  Rollout ro;
+  Mac out{};
+  r.upsert(B, onBuild(kOld), kReady);
+  r.upsert(C, onBuild(kOld, 0xC0A80632), kReady);    // C in update mode (has an IP)
+  TEST_ASSERT_FALSE(ro.next(r, kNew, A, kReady, out));
+}
+
 void test_shared_settings_skip_per_bug_fields() {
   Settings master = defaultSettings(A), bug = defaultSettings(B);
   bug.pulseA = master.pulseA + 100;               // calibration is per bug
@@ -534,6 +612,11 @@ int main() {
   RUN_TEST(test_roster_offline_and_back);
   RUN_TEST(test_roster_reports_joins_once);
   RUN_TEST(test_shared_settings_skip_per_bug_fields);
+  RUN_TEST(test_rollout_waits_for_the_master_to_settle);
+  RUN_TEST(test_rollout_picks_only_online_out_of_date_followers);
+  RUN_TEST(test_rollout_one_at_a_time_then_the_next);
+  RUN_TEST(test_rollout_retries_once_then_gives_up);
+  RUN_TEST(test_rollout_pauses_while_the_mac_is_updating);
   RUN_TEST(test_roster_counts_restarts_and_dropouts);
   RUN_TEST(test_roster_capacity);
   RUN_TEST(test_pulse_shape);

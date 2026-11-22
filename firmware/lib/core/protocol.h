@@ -12,7 +12,9 @@ constexpr uint8_t kProtocolVersion = 8;  // 8: rainbowHop, glow colour mode, glo
 enum class PacketType : uint8_t { Beacon = 1, Status = 2, Command = 3 };
 // Hold: the master is about to restart on purpose; don't claim master for `arg` seconds.
 // Update: followers join home Wi-Fi with OTA open for `arg` minutes (wireless updates).
-enum class CommandType : uint8_t { Hop = 1, Ripple = 2, Identify = 3, Settings = 4, Hold = 5, Update = 6 };
+// Fetch (7): download the master's firmware. arg = the master's NetMode, mask = its IPv4.
+// Older firmware ignores commands it doesn't know, so adding one needs no protocol bump.
+enum class CommandType : uint8_t { Hop = 1, Ripple = 2, Identify = 3, Settings = 4, Hold = 5, Update = 6, Fetch = 7 };
 enum class NetMode : uint8_t { None = 0, HomeWifi = 1, Hotspot = 2 };
 
 struct __attribute__((packed)) Header {

@@ -4,6 +4,7 @@
 #include <user_interface.h>  // REASON_* reset codes
 #include <ESPAsyncWebServer.h>
 
+#include "generated/build_info.h"
 #include "generated/webapp_files.h"
 
 #include "network.h"
@@ -213,6 +214,36 @@ void handleIdentify(AsyncWebServerRequest* req) {
   sendCommand(req, makeCommand(ff::CommandType::Identify, target));
 }
 
+// Followers download the master's own running firmware (see fetch.cpp), read from flash.
+// ESP8266httpUpdate sends the follower's build time as x-ESP8266-version; anything that
+// isn't older gets 304, so a follower is never downgraded.
+size_t sketchSize() {
+  static size_t size = ESP.getSketchSize();  // parses the image, so only once
+  return size;
+}
+
+size_t readSketch(uint8_t* buf, size_t maxLen, size_t index) {
+  static uint32_t chunk[(1024 + 8) / 4];  // flashRead needs 4-byte aligned addresses and sizes
+  size_t size = sketchSize();
+  if (index >= size) return 0;
+  size_t n = std::min(std::min(maxLen, size - index), (size_t)1024);
+  uint32_t start = index & ~3u;
+  size_t span = ((index + n + 3) & ~3u) - start;
+  if (!ESP.flashRead(start, chunk, span)) return 0;
+  memcpy(buf, (uint8_t*)chunk + (index - start), n);
+  return n;
+}
+
+void handleFirmware(AsyncWebServerRequest* req) {
+  const AsyncWebHeader* version = req->getHeader("x-ESP8266-version");
+  if (!version) return sendError(req, "for fireflies only");
+  if (strtoul(version->value().c_str(), nullptr, 10) >= FF_BUILD_TIME) return req->send(304);
+  AsyncWebServerResponse* res = req->beginResponse("application/octet-stream", sketchSize(), readSketch);
+  res->addHeader("x-MD5", ESP.getSketchMD5());
+  req->send(res);
+  Serial.println(F("[update] a follower is downloading this firmware"));
+}
+
 // Puts followers into update mode so new firmware can be pushed to them (scripts/update_all.py).
 void handleUpdate(AsyncWebServerRequest* req) {
   if (net::mode() != ff::NetMode::HomeWifi) return sendError(req, "the master must be on home Wi-Fi for updates");
@@ -332,6 +363,7 @@ void begin(const ff::Roster& r, const ff::Mac& selfMac, CommandSink commandSink)
   server.on("/api/identify", HTTP_POST, handleIdentify);
   server.on("/api/settings", HTTP_POST, handleSettings);
   server.on("/api/update", HTTP_POST, handleUpdate);
+  server.on("/firmware.bin", HTTP_GET, handleFirmware);
   // "/api/wifi" would also match "/api/wifi/forget", so register the longer path first.
   server.on("/api/wifi/forget", HTTP_POST, handleWifiForget);
   server.on("/api/wifi/disconnect", HTTP_POST, handleWifiDisconnect);

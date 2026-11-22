@@ -30,6 +30,8 @@ void onOtaStart(void (*handler)());
 // home Wi-Fi was lost for a while, or a new network was saved from the app.
 bool loop(uint32_t now);
 ff::NetMode mode();
+// The master's IPv4 on its current network (home Wi-Fi or its hotspot), 0 if none.
+uint32_t masterIp();
 
 struct WifiInfo {
   ff::NetMode mode;

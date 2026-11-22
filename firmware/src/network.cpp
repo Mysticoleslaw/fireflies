@@ -301,4 +301,10 @@ ff::NetMode mode() {
 
 void onOtaStart(void (*handler)()) { otaStartHandler = handler; }
 
+uint32_t masterIp() {
+  if (state == State::HomeWifi) return (uint32_t)WiFi.localIP();
+  if (state == State::Hotspot) return (uint32_t)WiFi.softAPIP();
+  return 0;
+}
+
 }  // namespace net
