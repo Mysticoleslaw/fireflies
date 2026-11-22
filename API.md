@@ -66,7 +66,7 @@ All responses send `Access-Control-Allow-Origin: *`, so the app can also run fro
 | POST | `/api/wifi/disconnect` | stay off Wi-Fi and run the `Fireflies` hotspot until reconnected (kept across reboots), then restart |
 | POST | `/api/wifi/reconnect` | undo disconnect, then restart |
 
-Before any planned restart, the master broadcasts a `Hold` command (45 s), so followers don't take over during the reboot. While holding, they listen on all 13 channels.
+Before any planned restart, the master broadcasts a `Hold` command (45 s; 90 s when its own firmware upload starts), so followers don't take over during the reboot. While holding, they listen on all 13 channels.
 
 Errors return 400 with `{"error": "message"}`, or 503 when the master is momentarily busy (command queue full, or low on memory); retry after a moment. Success returns 200 `{"ok": true}`. `OPTIONS` requests get a 204 CORS preflight response.
 
