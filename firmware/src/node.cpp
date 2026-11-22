@@ -37,7 +37,8 @@ void Node::begin(uint32_t now) {
   if (!radio::begin(cfg::kDefaultChannel)) Serial.println(F("[mesh] ESP-NOW failed to start"));
   char id[13];
   ff::macToHex(self_, id);
-  Serial.printf("[boot] %s (%s)\n", settings_.name, id);
+  Serial.printf("[boot] %s (%s), build %08lx built %lu\n", settings_.name, id, (unsigned long)FF_BUILD_ID,
+                (unsigned long)FF_BUILD_TIME);
   startSearch();
 }
 
