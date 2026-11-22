@@ -107,4 +107,25 @@ bool saveNetPrefs(const NetPrefs& prefs) {
   return ok;
 }
 
+constexpr const char* kArmPath = "/arm.bin";
+
+bool loadArmAtB() {
+  File f = LittleFS.open(kArmPath, "r");
+  if (!f) return false;
+  int end = f.read();
+  f.close();
+  return end == 1;
+}
+
+// One byte, written after each landing. A torn write reads as end A: the old behaviour.
+void saveArmAtB(bool atB) {
+  File f = LittleFS.open(kArmPath, "w");
+  if (!f) {
+    Serial.println(F("[storage] arm position write failed"));
+    return;
+  }
+  f.write((uint8_t)(atB ? 1 : 0));
+  f.close();
+}
+
 }  // namespace storage

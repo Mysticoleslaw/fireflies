@@ -113,6 +113,22 @@ def update_follower(master: str, bug: dict, build_id: str, password: str) -> boo
     return True
 
 
+def wait_rejoined(master: str, ids: list[str], build_id: str) -> list[str]:
+    """Waits until the updated followers are back with the master; returns ids still missing.
+
+    The master must not restart before then: a follower that is rebooting misses the master's
+    Hold broadcast, finds no master when it comes back, and takes over the role.
+    """
+    pending = set(ids)
+    end = time.time() + REJOIN_TIMEOUT_S
+    while pending and time.time() < end:
+        time.sleep(3)
+        for bug in bugs(master):
+            if bug["online"] and bug.get("build") == build_id:
+                pending.discard(bug["id"])
+    return sorted(pending)
+
+
 def update_master(master_ip: str, master: dict, password: str) -> bool:
     say(f"  {master['name']} (master) at {master_ip}: sending firmware...")
     ok = push(master_ip, password)
@@ -156,6 +172,11 @@ def main() -> None:
 
     targets = followers + ([master] if wanted(master) else [])
     uploaded = [b for b in followers if update_follower(master_ip, b, build_id, password)]
+    if wanted(master) and uploaded:
+        say("Waiting for the followers to rejoin before updating the master...")
+        missing = wait_rejoined(master_ip, [b["id"] for b in uploaded], build_id)
+        if missing:
+            say(f"  not back yet: {', '.join(missing)} (the master role may move to one of them)")
     if wanted(master) and update_master(master_ip, master, password):
         uploaded.append(master)
     say("Waiting for everyone to come back on the new build...")

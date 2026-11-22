@@ -31,7 +31,7 @@ uint8_t scale(uint8_t channel, uint8_t level) { return (uint16_t)channel * level
 
 }  // namespace
 
-void Hopper::begin(const ff::Settings& settings, uint32_t now) {
+void Hopper::begin(const ff::Settings& settings, uint32_t now, bool startAtB) {
   pixel_.begin();
   show(0, 0);
   pinMode(cfg::kOnboardLedPin, OUTPUT);
@@ -41,7 +41,10 @@ void Hopper::begin(const ff::Settings& settings, uint32_t now) {
   settings_ = settings;
   scheduleNext(now);
   servoReady_ = true;
-  driveServo();  // start from a known end (A)
+  // Hold the end it was resting on. Snapping to end A at full servo speed flips the bug over.
+  atB_ = startAtB;
+  driveServo();
+  endDirty_ = false;
   if (glowing()) glow_.startAt(now, kFirstGlowMs);
 }
 
@@ -87,6 +90,13 @@ void Hopper::hopAfter(uint32_t now, uint32_t delayMs) {
 void Hopper::identify(uint32_t now) {
   identifying_ = true;
   identifyAt_ = now;
+}
+
+bool Hopper::takeLanded(uint32_t now, bool& atB) {
+  if (!endDirty_ || swinging_ || (int32_t)(now - endSaveAt_) < 0) return false;
+  endDirty_ = false;
+  atB = atB_;
+  return true;
 }
 
 bool Hopper::takeChanged() {
@@ -136,6 +146,8 @@ uint16_t Hopper::targetUs() const { return atB_ ? settings_.pulseB : settings_.p
 void Hopper::driveServo() {
   swinging_ = false;
   driveServoUs(targetUs(), settings_.holdServo ? 0 : kJumpSettleMs * 1000);
+  endDirty_ = true;
+  endSaveAt_ = millis() + kJumpSettleMs;
 }
 
 // "Swing time" is the real duration of the swing: the pulse width eases from one end to
@@ -145,6 +157,8 @@ void Hopper::advanceSwing(uint32_t now) {
   if (t >= settings_.swingMs) {
     swinging_ = false;
     driveServoUs(toUs_, settings_.holdServo ? 0 : kSettleMs * 1000);
+    endDirty_ = true;
+    endSaveAt_ = now + kSettleMs;
     return;
   }
   uint16_t us = ff::swingPulse(fromUs_, toUs_, t, settings_.swingMs);

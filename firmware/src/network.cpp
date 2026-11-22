@@ -115,9 +115,12 @@ void finishScan() {
   state = State::Scanned;
 }
 
+void (*otaStartHandler)() = nullptr;
+
 void startServices() {
   ArduinoOTA.setHostname(cfg::kHostname);
   ArduinoOTA.setPassword(FF_OTA_PASSWORD);
+  ArduinoOTA.onStart([] { if (otaStartHandler) otaStartHandler(); });
   ArduinoOTA.begin();  // also starts mDNS with our hostname
   MDNS.addService("http", "tcp", 80);
 }
@@ -295,5 +298,7 @@ ff::NetMode mode() {
   if (state == State::Hotspot) return ff::NetMode::Hotspot;
   return ff::NetMode::None;
 }
+
+void onOtaStart(void (*handler)()) { otaStartHandler = handler; }
 
 }  // namespace net

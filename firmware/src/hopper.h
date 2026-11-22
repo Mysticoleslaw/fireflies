@@ -10,7 +10,8 @@
 // then it glows like a firefly (bursts of soft pulses) until the next hop.
 class Hopper {
  public:
-  void begin(const ff::Settings& settings, uint32_t now);
+  // startAtB: the end the arm was resting on before the reboot (it's held there, no move).
+  void begin(const ff::Settings& settings, uint32_t now, bool startAtB);
   void setSettings(const ff::Settings& settings, uint32_t now);
   void loop(uint32_t now);
 
@@ -22,6 +23,8 @@ class Hopper {
   uint32_t colour() const { return colour_; }  // 0xRRGGBB of the last hop
   // True once after the LED turned on/off or changed colour.
   bool takeChanged();
+  // True once after the arm has landed on a new end (and settled), so it can be saved.
+  bool takeLanded(uint32_t now, bool& atB);
 
  private:
   void hop(uint32_t now);
@@ -45,6 +48,8 @@ class Hopper {
   Adafruit_NeoPixel pixel_{cfg::kLedCount, cfg::kLedPin, NEO_GRB + NEO_KHZ800};
 
   bool atB_ = false;
+  bool endDirty_ = false;      // atB_ changed and isn't saved yet
+  uint32_t endSaveAt_ = 0;     // save once the arm has settled
   bool servoReady_ = false;
   bool swinging_ = false;
   uint32_t swingStart_ = 0;

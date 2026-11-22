@@ -24,6 +24,8 @@ bool scanResult(ScanResult& out);
 
 // Master only: join home Wi-Fi (falls back to the hotspot) or start the hotspot.
 void startMaster(uint8_t channel, bool homeFound, uint32_t now);
+// Called when a firmware upload to the master starts. The upload then blocks loop() until reboot.
+void onOtaStart(void (*handler)());
 // Returns true when the master should restart: home Wi-Fi came back while on the hotspot,
 // home Wi-Fi was lost for a while, or a new network was saved from the app.
 bool loop(uint32_t now);

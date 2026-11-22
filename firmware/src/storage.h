@@ -25,6 +25,10 @@ struct NetPrefs {
 bool loadWifi(WifiCreds& out);
 bool saveWifi(const WifiCreds& creds);
 void forgetWifi();
+// Which end the arm last landed on, so a reboot holds it there instead of snapping to end A.
+bool loadArmAtB();
+void saveArmAtB(bool atB);
+
 NetPrefs loadNetPrefs();
 bool saveNetPrefs(const NetPrefs& prefs);
 

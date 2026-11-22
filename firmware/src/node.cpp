@@ -30,7 +30,7 @@ bool forwardToNode(const ff::CommandPacket& c) { return node.queueCommand(c); }
 void Node::begin(uint32_t now) {
   self_ = radio::selfMac();
   settings_ = storage::load(self_);
-  hopper_.begin(settings_, now);
+  hopper_.begin(settings_, now, storage::loadArmAtB());
   election_ = ff::Election(self_);
   seq_ = random(0x10000);
   if (!radio::begin(cfg::kDefaultChannel)) Serial.println(F("[mesh] ESP-NOW failed to start"));
@@ -42,6 +42,8 @@ void Node::begin(uint32_t now) {
 
 void Node::loop(uint32_t now) {
   hopper_.loop(now);
+  bool atB;
+  if (hopper_.takeLanded(now, atB)) storage::saveArmAtB(atB);
   battery::loop(now);
   if (scanning_) {
     pollScan(now);
@@ -119,6 +121,7 @@ void Node::becomeMaster(uint32_t now) {
   uint8_t channel = scan_.homeFound ? scan_.homeChannel : cfg::kDefaultChannel;
   radio::setChannel(channel);
   sendBeacon(now);  // claim it before the slow Wi-Fi setup, so rivals can stand down
+  net::onOtaStart([] { node.holdForUpdate(); });
   net::startMaster(channel, scan_.homeFound, now);
 }
 
@@ -150,6 +153,22 @@ void Node::restart(uint32_t now) {
   if (settingsDirty_) storage::save(settings_);
   delay(50);
   ESP.restart();
+}
+
+// The upload blocks loop() until the reboot, so the queue would never send: send the Hold here.
+void Node::holdForUpdate() {
+  ff::CommandPacket hold{};
+  hold.h = ff::makeHeader(ff::PacketType::Command, FF_GROUP_ID, seq_++);
+  hold.target = ff::kBroadcast;
+  hold.command = (uint8_t)ff::CommandType::Hold;
+  hold.arg = cfg::kUpdateHoldSeconds;
+  for (uint8_t i = 0; i < cfg::kCommandRepeats; i++) {
+    uint32_t start = millis();
+    while (!radio::ready() && millis() - start < 100) delay(1);
+    radio::send(&hold, sizeof hold);
+    delay(cfg::kCommandGapMs);
+  }
+  Serial.println(F("[update] firmware upload starting, followers told to hold"));
 }
 
 // ---------- incoming ----------

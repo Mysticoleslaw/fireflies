@@ -13,6 +13,8 @@ class Node {
   void loop(uint32_t now);
   // Commands from the web API. Returns false if the queue is full.
   bool queueCommand(const ff::CommandPacket& command);
+  // Master only: its own firmware upload is starting, so followers must not take over.
+  void holdForUpdate();
 
  private:
   struct Outgoing {
