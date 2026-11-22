@@ -470,6 +470,16 @@ void test_swing_pulse_moves_gradually_both_ways() {
   TEST_ASSERT_EQUAL(2500, swingPulse(500, 2500, 0, 0));        // zero length = jump
 }
 
+void test_move_length_scales_with_distance() {
+  TEST_ASSERT_EQUAL(1100, moveLengthMs(500, 2500, 500, 2500, 1100));   // end to end: full swing time
+  TEST_ASSERT_EQUAL(1100, moveLengthMs(2500, 500, 500, 2500, 1100));   // either direction
+  TEST_ASSERT_EQUAL(550, moveLengthMs(500, 1500, 500, 2500, 1100));    // half way: half the time
+  TEST_ASSERT_EQUAL(1100, moveLengthMs(500, 2600, 500, 2500, 1100));   // never longer than a swing
+  TEST_ASSERT_EQUAL(kMinMoveMs, moveLengthMs(500, 510, 500, 2500, 1100));  // tiny nudge: still eased
+  TEST_ASSERT_EQUAL(0, moveLengthMs(500, 500, 500, 2500, 1100));       // already there
+  TEST_ASSERT_EQUAL(1100, moveLengthMs(500, 600, 1500, 1500, 1100));   // no range yet: play safe
+}
+
 int main() {
   UNITY_BEGIN();
   RUN_TEST(test_mac_hex_round_trip);
@@ -508,5 +518,6 @@ int main() {
   RUN_TEST(test_rainbow_and_glow_random_settings);
   RUN_TEST(test_ease_in_out);
   RUN_TEST(test_swing_pulse_moves_gradually_both_ways);
+  RUN_TEST(test_move_length_scales_with_distance);
   return UNITY_END();
 }

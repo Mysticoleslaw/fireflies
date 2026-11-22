@@ -20,4 +20,18 @@ inline uint16_t swingPulse(uint16_t fromUs, uint16_t toUs, uint32_t t, uint32_t 
   return (uint16_t)(fromUs + span * (int32_t)easeInOut(t * 1000 / lengthMs) / 1000);
 }
 
+// Even a tiny calibration nudge eases rather than jumps.
+constexpr uint32_t kMinMoveMs = 150;
+
+// How long a move from `fromUs` to `toUs` should take so the arm never goes faster than a
+// hop: moving the full A..B range takes `swingMs`, shorter moves a proportional share.
+inline uint32_t moveLengthMs(uint16_t fromUs, uint16_t toUs, uint16_t pulseA, uint16_t pulseB, uint32_t swingMs) {
+  uint32_t dist = fromUs > toUs ? fromUs - toUs : toUs - fromUs;
+  if (dist == 0) return 0;
+  uint32_t range = pulseA > pulseB ? pulseA - pulseB : pulseB - pulseA;
+  if (range == 0 || dist >= range) return swingMs;
+  uint32_t ms = swingMs * dist / range;
+  return ms < kMinMoveMs ? kMinMoveMs : ms;
+}
+
 }  // namespace ff

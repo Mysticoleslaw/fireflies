@@ -61,7 +61,8 @@ void Hopper::setSettings(const ff::Settings& settings, uint32_t now) {
   // Calibration: show the end being adjusted, so you can watch the angle as you tune it.
   if (aChanged) atB_ = false;
   else if (bChanged) atB_ = true;
-  if (servoReady_ && (aChanged || bChanged || holdChanged)) driveServo();
+  if (servoReady_ && (aChanged || bChanged)) easeTo(now);  // never at full speed: it flips the bug
+  else if (servoReady_ && holdChanged) driveServo();       // same spot, just held or released
   if (!glowing()) glow_.stop();
   else if (!wasGlowing) glow_.startAt(now, kFirstGlowMs);
 }
@@ -109,6 +110,7 @@ void Hopper::hop(uint32_t now) {
   fromUs_ = servoUs_;
   atB_ = !atB_;
   toUs_ = targetUs();
+  swingLenMs_ = settings_.swingMs;
   swingStart_ = now;
   swinging_ = true;
   driveServoUs(fromUs_, 0);  // pulse continuously while the swing is in progress
@@ -142,7 +144,8 @@ void Hopper::scheduleNext(uint32_t now) {
 
 uint16_t Hopper::targetUs() const { return atB_ ? settings_.pulseB : settings_.pulseA; }
 
-// Direct move to the current end at full servo speed (boot, calibration, hold toggle).
+// Drive the current end directly. Only used where the arm is already there (boot, hold toggle):
+// a real move at full servo speed flips the bug over.
 void Hopper::driveServo() {
   swinging_ = false;
   driveServoUs(targetUs(), settings_.holdServo ? 0 : kJumpSettleMs * 1000);
@@ -150,18 +153,29 @@ void Hopper::driveServo() {
   endSaveAt_ = millis() + kJumpSettleMs;
 }
 
+// Calibration: ease from wherever the arm is to the current end, no faster than a hop.
+void Hopper::easeTo(uint32_t now) {
+  fromUs_ = servoUs_;
+  toUs_ = targetUs();
+  swingLenMs_ = ff::moveLengthMs(fromUs_, toUs_, settings_.pulseA, settings_.pulseB, settings_.swingMs);
+  if (swingLenMs_ == 0) return driveServo();
+  swingStart_ = now;
+  swinging_ = true;
+  driveServoUs(fromUs_, 0);
+}
+
 // "Swing time" is the real duration of the swing: the pulse width eases from one end to
 // the other, so the arm starts and lands gently (it can't beat the servo's top speed).
 void Hopper::advanceSwing(uint32_t now) {
   uint32_t t = now - swingStart_;
-  if (t >= settings_.swingMs) {
+  if (t >= swingLenMs_) {
     swinging_ = false;
     driveServoUs(toUs_, settings_.holdServo ? 0 : kSettleMs * 1000);
     endDirty_ = true;
     endSaveAt_ = now + kSettleMs;
     return;
   }
-  uint16_t us = ff::swingPulse(fromUs_, toUs_, t, settings_.swingMs);
+  uint16_t us = ff::swingPulse(fromUs_, toUs_, t, swingLenMs_);
   if (us != servoUs_) driveServoUs(us, 0);
 }
 

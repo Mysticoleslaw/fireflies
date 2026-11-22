@@ -30,6 +30,7 @@ class Hopper {
   void hop(uint32_t now);
   void scheduleNext(uint32_t now);
   void driveServo();
+  void easeTo(uint32_t now);
   uint16_t targetUs() const;
   void advanceSwing(uint32_t now);
   void driveServoUs(uint32_t us, uint32_t runUs);
@@ -53,6 +54,7 @@ class Hopper {
   bool servoReady_ = false;
   bool swinging_ = false;
   uint32_t swingStart_ = 0;
+  uint32_t swingLenMs_ = 0;     // this move's length (a hop: swingMs; calibration: by distance)
   uint16_t fromUs_ = 0, toUs_ = 0;
   uint16_t servoUs_ = 0;        // pulse width currently being sent
   bool servoActive_ = false;
